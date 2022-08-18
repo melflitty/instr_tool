@@ -7,11 +7,13 @@ extern "C" {
 }
 //#include "utils/copy_register.h"
 #include <immintrin.h>
+#include <bitset>  
 using std::cerr;
 using std::endl;
 using std::ios;
 using std::ofstream;
 using std::string;
+
 
 ofstream OutFile;
 static UINT64 icountf=0;
@@ -21,7 +23,6 @@ static UINT64 icountf=0;
 static REG tmp_reg1;
 static REG tmp_reg2;
 static REG tmp_reg_output;
-static REG tmp_reg_first;
 template<typename T, void (*op)(T, T, T*)>
 void wrap(T* const a, T* const b, T* c)
  {
@@ -113,22 +114,20 @@ void div_double(double a, double b, double* cptr)
       dst[i]=(*src);
 
     }
-    
-    /*
-    void PIN_FAST_ANALYSIS_CALL copy_from_input(float* src,float* dst,int i)
+    template<typename T>
+    void PIN_FAST_ANALYSIS_CALL zero_reg_at_position(T* dst,int pos)
     {
-      OutFile << "I arrived at copy register from input for the  "  << i  << " time" << std::endl;
-      (*dst)=(src)[i];
-
+      OutFile << "I arrived at zero reg at position "  <<  pos << std::endl;
+      dst[pos]=0;
 
     }
-    
-    void PIN_FAST_ANALYSIS_CALL copy_to_output(float* src,float* dst,int i)
-    {
-      OutFile << "I arrived at copy register to output for the  "  << i  << " time" << std::endl;
-      dst[i]=(*src);
 
-    }*/
+
+     static bool PIN_FAST_ANALYSIS_CALL check_mask(UINT16* const mask,int I)
+     {
+        return ((*mask) & ((1) << (I))) != 0;
+     }
+
 
  
 VOID Instruction(INS ins, VOID* v)
@@ -136,6 +135,11 @@ VOID Instruction(INS ins, VOID* v)
       
       auto xed = INS_XedDec(ins);
       auto iform = xed_decoded_inst_get_iform_enum(xed);
+      int counter=0;
+      bool ismasking=xed_decoded_inst_masking(xed);
+      bool ismerging=xed_decoded_inst_merging(xed);
+      bool iszeroing=xed_decoded_inst_zeroing(xed);
+      REG mask_reg = INS_MaskRegister(ins); // returns REG_INVALID if the instruction does not use mask
       switch(iform)
       {
       
@@ -2219,6 +2223,115 @@ VOID Instruction(INS ins, VOID* v)
             INS_Delete(ins);
             break;
        }
+       case xed_iform_enum_t::XED_IFORM_VADDPS_XMMf32_MASKmskw_XMMf32_MEMf32_AVX512:
+       {
+          OutFile << "Found one vaddps avx512 reg mem xmm" << std::endl;
+          break;
+
+       }
+       case xed_iform_enum_t::XED_IFORM_VADDPS_XMMf32_MASKmskw_XMMf32_XMMf32_AVX512:
+       {
+          OutFile << "Found one vaddps avx512 reg reg xmm" << std::endl;
+          break;
+
+       }
+       case xed_iform_enum_t::XED_IFORM_VADDPS_YMMf32_MASKmskw_YMMf32_MEMf32_AVX512:
+       {
+          OutFile << "Found one vaddps avx512 reg mem ymm" << std::endl;
+          break;
+
+       }
+       case xed_iform_enum_t::XED_IFORM_VADDPS_YMMf32_MASKmskw_YMMf32_YMMf32_AVX512:
+       {
+          OutFile << "Found one vaddps avx512 reg reg ymm" << std::endl;
+          break;
+
+       }
+       case xed_iform_enum_t:: XED_IFORM_VADDPS_ZMMf32_MASKmskw_ZMMf32_MEMf32_AVX512:
+       {
+          OutFile << "Found one vaddps avx512 reg mem zmm " << INS_Mnemonic(ins)<< std::endl;
+          OutFile << "Is avx?" << xed_classify_avx512(xed) << std::endl;
+          OutFile << "Is avx maskop?" << xed_classify_avx512_maskop(xed) << std::endl;
+          OutFile << "Uses write masking" << xed_decoded_inst_masking(xed) << std::endl;
+          OutFile << "Number of memory operands "<< xed_decoded_inst_number_of_memory_operands(xed) << std::endl;
+          break;
+
+       }
+       case xed_iform_enum_t:: XED_IFORM_VADDPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512:
+       {
+          OutFile << "Found one vaddps avx512 reg reg zmm " << INS_Mnemonic(ins) << std::endl;
+          
+           
+           for(int i=0;i<16;i++)
+             {
+              OutFile << "No masking" << std::endl;
+              INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)copy_from_input<float>,
+              IARG_FAST_ANALYSIS_CALL,
+              IARG_REG_CONST_REFERENCE,INS_OperandReg(ins,2),
+              IARG_REG_REFERENCE,tmp_reg1,
+              IARG_UINT32 ,i,
+              IARG_END);
+              INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)copy_from_input<float>,
+              IARG_FAST_ANALYSIS_CALL,
+              IARG_REG_CONST_REFERENCE,INS_OperandReg(ins,3),
+              IARG_REG_REFERENCE, tmp_reg2,
+              IARG_UINT32,i,
+              IARG_END);
+             INS_InsertCall(ins, IPOINT_BEFORE,(AFUNPTR)wrap<float,add_float>,
+              IARG_REG_CONST_REFERENCE, tmp_reg1,
+              IARG_REG_CONST_REFERENCE, tmp_reg2,
+              IARG_REG_REFERENCE, tmp_reg_output,
+              IARG_END);
+              if(!ismasking)
+              {
+              INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)copy_to_output<float>,
+              IARG_FAST_ANALYSIS_CALL,
+              IARG_REG_CONST_REFERENCE,tmp_reg_output,
+              IARG_REG_REFERENCE,INS_OperandReg(ins,0),
+              IARG_UINT32 ,i,
+              IARG_END);
+              } 
+             else 
+             {
+             if(iszeroing)
+              {
+              OutFile << "Is zeroing? yes " << std::endl;
+              INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)zero_reg_at_position<float>,
+              IARG_FAST_ANALYSIS_CALL,
+              IARG_REG_REFERENCE,INS_OperandReg(ins,0),
+              IARG_UINT32 ,i,
+              IARG_END);
+              }
+            
+             else
+             {
+              INS_InsertIfCall(ins, IPOINT_BEFORE, (AFUNPTR)check_mask,
+                IARG_FAST_ANALYSIS_CALL,
+                IARG_REG_CONST_REFERENCE,mask_reg,
+                IARG_UINT32,i,
+                IARG_END
+              );
+              INS_InsertThenCall(ins, IPOINT_BEFORE, (AFUNPTR)copy_to_output<float>,
+              IARG_FAST_ANALYSIS_CALL,
+              IARG_REG_CONST_REFERENCE,tmp_reg_output,
+              IARG_REG_REFERENCE,INS_OperandReg(ins,0),
+              IARG_UINT32 ,i,
+              IARG_END);
+
+             }
+            
+         } 
+             }
+          INS_Delete(ins);
+          OutFile << "Couter: " << ++counter << std::endl;
+          OutFile << "Is avx?" << xed_classify_avx512(xed) << std::endl;
+          OutFile << "Is avx maskop?" << xed_classify_avx512_maskop(xed) << std::endl;
+          OutFile << "Uses write masking" << xed_decoded_inst_masking(xed) << std::endl;
+          OutFile << "Number of memory operands "<< xed_decoded_inst_number_of_memory_operands(xed) << std::endl;
+          break;
+       
+       }
+
        default: break;
 
 
@@ -2265,8 +2378,7 @@ int main(int argc, char* argv[])
     tmp_reg1=PIN_ClaimToolRegister();
     tmp_reg2=PIN_ClaimToolRegister();
     tmp_reg_output=PIN_ClaimToolRegister();
-    tmp_reg_first=PIN_ClaimToolRegister();
-    if (!REG_valid(tmp_reg1) || !REG_valid(tmp_reg2) || !REG_valid(tmp_reg_output) || !REG_valid(tmp_reg_first))
+    if (!REG_valid(tmp_reg1) || !REG_valid(tmp_reg2) || !REG_valid(tmp_reg_output))
         {
           std::cerr << "Cannot allocate a scratch register.\n";
           std::cerr << std::flush;
