@@ -1,7 +1,0 @@
-[
-{
-  "directory": "/home/melflitty/instr_tool/src",
-  "command": "/usr/bin/c++  -DMyFirstTool_EXPORTS -I/home/melflitty/instr_tool/Pin/Linux/extras/components/include -I/home/melflitty/instr_tool/Pin/Linux/extras/xed-intel64/include/xed -I/home/melflitty/instr_tool/Pin/Linux/source/tools/Utils -I/home/melflitty/instr_tool/Pin/Linux/source/tools/InstLib -I/home/melflitty/instr_tool/Pin/Linux/source/include/pin -I/home/melflitty/instr_tool/Pin/Linux/source/include/pin/gen -I/home/melflitty/instr_tool/include -I/home/melflitty/instr_tool/src -isystem /home/melflitty/instr_tool/Pin/Linux/extras/stlport/include -isystem /home/melflitty/instr_tool/Pin/Linux/extras/libstdc++/include -isystem /home/melflitty/instr_tool/Pin/Linux/extras/crt/include -isystem /home/melflitty/instr_tool/Pin/Linux/extras/crt/include/arch-x86_64 -isystem /home/melflitty/instr_tool/Pin/Linux/extras/crt/include/kernel/uapi -isystem /home/melflitty/instr_tool/Pin/Linux/extras/crt/include/kernel/uapi/asm-x86  -fPIC   -Wall -Wno-unknown-pragmas -D__PIN__=1 -DPIN_CRT=1 -DXED_DLL -D_STLP_IMPORT_IOSTREAMS -fno-stack-protector -fno-exceptions -funwind-tables -fasynchronous-unwind-tables -fno-rtti -DTARGET_IA32E -DHOST_IA32E -fPIC -DTARGET_LINUX -fabi-version=2 -O3 -fomit-frame-pointer -fno-strict-aliasing -std=gnu++17 -o CMakeFiles/MyFirstTool.dir/test_direct_ins.cpp.o -c /home/melflitty/instr_tool/src/test_direct_ins.cpp",
-  "file": "/home/melflitty/instr_tool/src/test_direct_ins.cpp"
-}
-]
